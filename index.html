@@ -3,232 +3,131 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity Web Player | Survival Game</title>
+    <title>Unity Web Player | GunLock</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
   </head>
-  <body style="text-align: center; padding: 0; border: 0; margin: 0;">
-    <canvas
-      id="unity-canvas"
-      width="500"
-      height="1000"
-      tabindex="-1"
-      style="width: 100%; height: 100dvh; background: #231f20"
-    ></canvas>
-    <script src="Build/cb-gunfu-build.loader.js"></script>
+  <body>
+    <div id="unity-container" class="unity-desktop">
+      <canvas id="unity-canvas" width=360 height=640 tabindex="-1"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"> </div>
+      <div id="unity-footer">
+        <div id="unity-logo-title-footer"></div>
+        <div id="unity-fullscreen-button"></div>
+        <div id="unity-build-title">GunLock</div>
+      </div>
+    </div>
     <script>
+      var canvas = document.querySelector("#unity-canvas");
+
+      // Shows a temporary message banner/ribbon for a few seconds, or
+      // a permanent error message on top of the canvas if type=='error'.
+      // If type=='warning', a yellow highlight color is used.
+      // Modify or remove this function to customize the visually presented
+      // way that non-critical warnings and error messages are presented to the
+      // user.
+      function unityShowBanner(msg, type) {
+        var warningBanner = document.querySelector("#unity-warning");
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/gun-fu-run.loader.js";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/gun-fu-run.data",
+        frameworkUrl: buildUrl + "/gun-fu-run.framework.js",
+        codeUrl: buildUrl + "/gun-fu-run.wasm",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "Onechain",
+        productName: "GunLock",
+        productVersion: "1.0",
+        showBanner: unityShowBanner,
+        // errorHandler: function(err, url, line) {
+        //    alert("error " + err + " occurred at line " + line);
+        //    // Return 'true' if you handled this error and don't want Unity
+        //    // to process it further, 'false' otherwise.
+        //    return true;
+        // },
+      };
+
+      // By default, Unity keeps WebGL canvas render target size matched with
+      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
+      // Set this to false if you want to decouple this synchronization from
+      // happening inside the engine, and you would instead like to size up
+      // the canvas DOM size and WebGL render target sizes yourself.
+      // config.matchWebGLToCanvasSize = false;
+
+      // If you would like all file writes inside Unity Application.persistentDataPath
+      // directory to automatically persist so that the contents are remembered when
+      // the user revisits the site the next time, uncomment the following line:
+      // config.autoSyncPersistentDataPath = true;
+      // This autosyncing is currently not the default behavior to avoid regressing
+      // existing user projects that might rely on the earlier manual
+      // JS_FileSystem_Sync() behavior, but in future Unity version, this will be
+      // expected to change.
+
       if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
         // Mobile device style: fill the whole browser client area with the game canvas:
+
         var meta = document.createElement('meta');
         meta.name = 'viewport';
         meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
         document.getElementsByTagName('head')[0].appendChild(meta);
+        document.querySelector("#unity-container").className = "unity-mobile";
+        canvas.className = "unity-mobile";
 
-        var canvas = document.querySelector("#unity-canvas");
-        canvas.style.width = "100%";
-        canvas.style.height = "100%";
-        canvas.style.position = "fixed";
+        // To lower canvas resolution on mobile devices to gain some
+        // performance, uncomment the following line:
+        // config.devicePixelRatio = 1;
 
-        document.body.style.textAlign = "left";
 
+      } else {
+        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
+        canvas.style.width = "360px";
+        canvas.style.height = "640px";
       }
 
-      createUnityInstance(
-        document.querySelector('#unity-canvas'),
-        {
-          arguments: [],
-          dataUrl: 'Build/cb-gunfu-build.data',
-          frameworkUrl: 'Build/cb-gunfu-build.framework.js',
-          codeUrl: 'Build/cb-gunfu-build.wasm',
-          streamingAssetsUrl: 'StreamingAssets',
-          companyName: 'Uptopia',
-          productName: 'Gunlock',
-          productVersion: '0.5',
-          // matchWebGLToCanvasSize: false, // Uncomment this to separately control WebGL canvas render size and DOM element size.
-          // devicePixelRatio: 1, // Uncomment this to override low DPI rendering on high DPI displays.
-        },
-        (progress) => {
-          window.parent.postMessage({ type: 'unityProgress', progress: Math.round(progress * 100) }, '*');
-          if (progress === 1) {
-            window.parent.postMessage({ type: 'unityReady' }, '*');
-          }
-        },
-      )
-        .then((unityInstance) => {
-          // Store Unity instance globally for use in .jslib
-          unityInstanceGlobal = unityInstance;
-          window.unityInstance = unityInstance;
+      document.querySelector("#unity-loading-bar").style.display = "block";
 
-          // Scale canvas after Unity is loaded
-          setTimeout(function () {
-            ScaleUnityCanvas(true, true);
-          }, 100);
-        })
-        .catch((message) => {
-          alert(message);
-        });
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
+              }).then((unityInstance) => {
+                document.querySelector("#unity-loading-bar").style.display = "none";
+                document.querySelector("#unity-fullscreen-button").onclick = () => {
+                  unityInstance.SetFullscreen(1);
+                };
 
-      window.SendUnityPostMessage = function(obj) {
-    console.log("[WebGL] Post Message:", obj);
-    try {
-      window.parent.postMessage(obj, "*");
-    } catch (e) {
-      console.warn("[WebGL] Failed to post message", e);
-    }
-  };
-    </script>
-    <!-- X conversion tracking base code -->
-<script>
-!function(e,t,n,s,u,a){e.twq||(s=e.twq=function(){s.exe?s.exe.apply(s,arguments):s.queue.push(arguments);
-},s.version='1.1',s.queue=[],u=t.createElement(n),u.async=!0,u.src='https://static.ads-twitter.com/uwt.js',
-a=t.getElementsByTagName(n)[0],a.parentNode.insertBefore(u,a))}(window,document,'script');
-twq('config','r1ci1');
-</script>
-<!-- End X conversion tracking base code -->
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            height: 100dvh;
-        }
+              }).catch((message) => {
+                alert(message);
+              });
+            };
 
-        #unity-container {
-            width: 100%;
-            max-width: 500px;
-            margin: 0 auto;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+      document.body.appendChild(script);
 
-        canvas {
-            display: block;
-            /* width: 100vw;
-            height: 100vh; */
-            object-fit: contain;
-            width: 100%;
-            height: 100%;
-            /* max-width: 420px;
-            max-height: 639px; */
-        }
-    </style>
-    <script>
-        // Global Unity instance reference
-        var unityInstanceGlobal = null;
-        
-        /**
-         * Scale Unity WebGL canvas to fit parent container
-         * Dynamic aspect ratio adapts to parent size within defined constraints
-         * Can be called from Unity .jslib files
-         * 
-         * @param {boolean} maintainAspectRatio - Whether to maintain aspect ratio (default: true)
-         * @param {boolean} useParentSize - Whether to use parent container size (default: true)
-         */
-        function ScaleUnityCanvas(maintainAspectRatio = true, useParentSize = true) {
-            const canvas = document.querySelector("#unity-canvas");
-            if (!canvas) {
-                console.warn("Unity canvas not found!");
-                return;
-            }
-
-            // Get parent container (body or custom container)
-            const parent = canvas.parentElement;
-            
-            // Aspect ratio constraints (width/height)
-            const MIN_ASPECT_RATIO = 9 / 21;  // ≈0.428 (narrower, more portrait)
-
-            if (useParentSize && parent) {
-                // Fall back to viewport if parent has no rendered dimensions (e.g. body without explicit height)
-                const parentWidth = parent.clientWidth || window.innerWidth;
-                const parentHeight = parent.clientHeight || window.innerHeight;
-
-                if (maintainAspectRatio) {
-                    // Calculate parent's aspect ratio
-                    const parentAspectRatio = parentWidth / parentHeight;
-                    
-                    // Clamp aspect ratio within allowed range (no upper bound)
-                    const targetAspectRatio = Math.max(MIN_ASPECT_RATIO, parentAspectRatio);
-                    
-                    let newWidth, newHeight;
-                    
-                    // Scale canvas to fill parent while respecting aspect ratio constraint
-                    if (parentAspectRatio > targetAspectRatio) {
-                        // Parent is wider than allowed - fit to height
-                        newHeight = parentHeight;
-                        newWidth = newHeight * targetAspectRatio;
-                    } else {
-                        // Parent is narrower - fit to width
-                        newWidth = parentWidth;
-                        newHeight = newWidth / targetAspectRatio;
-                    }
-
-                    canvas.style.width = newWidth + "px";
-                    canvas.style.height = newHeight + "px";
-                    
-                    console.log("Canvas scaled with dynamic aspect ratio:", 
-                        targetAspectRatio.toFixed(3), 
-                        `(${newWidth}px x ${newHeight}px)`);
-                } else {
-                    // Fill parent completely without maintaining aspect ratio
-                    canvas.style.width = parentWidth + "px";
-                    canvas.style.height = parentHeight + "px";
-                }
-            } else {
-                // Fallback: use viewport dimensions
-                if (maintainAspectRatio) {
-                    const viewportWidth = window.innerWidth;
-                    const viewportHeight = window.innerHeight;
-                    const viewportAspectRatio = viewportWidth / viewportHeight;
-                    
-                    // Clamp aspect ratio within allowed range (no upper bound)
-                    const targetAspectRatio = Math.max(MIN_ASPECT_RATIO, viewportAspectRatio);
-                    
-                    let newWidth, newHeight;
-                    
-                    if (viewportAspectRatio > targetAspectRatio) {
-                        newHeight = viewportHeight;
-                        newWidth = newHeight * targetAspectRatio;
-                    } else {
-                        newWidth = viewportWidth;
-                        newHeight = newWidth / targetAspectRatio;
-                    }
-
-                    canvas.style.width = newWidth + "px";
-                    canvas.style.height = newHeight + "px";
-                } else {
-                    canvas.style.width = "100%";
-                    canvas.style.height = "100%";
-                }
-            }
-
-            // Notify Unity instance if available
-            if (unityInstanceGlobal && unityInstanceGlobal.SendMessage) {
-                try {
-                    // Optional: Send message to Unity when canvas is resized
-                    // unityInstanceGlobal.SendMessage("GameController", "OnCanvasResized", "");
-                } catch (e) {
-                    console.log("Could not send message to Unity:", e);
-                }
-            }
-        }
-
-        // Legacy function for backward compatibility
-        function resizeCanvas() {
-            ScaleUnityCanvas(true, true);
-        }
-
-        // Auto-resize: ResizeObserver reacts to ANY parent size change
-        // (window resize, iframe CSS resize, parent JS resize, etc.)
-        var _resizeObserver = new ResizeObserver(function() {
-            ScaleUnityCanvas(true, true);
-        });
-        _resizeObserver.observe(document.documentElement);
-
-        window.addEventListener('load', function() {
-            ScaleUnityCanvas(true, true);
-        });
-
-        // Make function globally accessible for .jslib
-        window.ScaleUnityCanvas = ScaleUnityCanvas;
     </script>
   </body>
 </html>
